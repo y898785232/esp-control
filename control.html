@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ESP8266 控制</title>
+
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</head>
+
+<body style="text-align:center;font-size:30px;padding-top:50px;">
+
+<h2>ESP8266 远程控制</h2>
+
+<button onclick="sendMsg('ON1')" style="width:220px;height:80px;font-size:28px;">
+灯1 开
+</button>
+
+<br><br>
+
+<button onclick="sendMsg('OFF1')" style="width:220px;height:80px;font-size:28px;">
+灯1 关
+</button>
+
+<br><br>
+
+<button onclick="sendMsg('ON2')" style="width:220px;height:80px;font-size:28px;">
+灯2 开
+</button>
+
+<br><br>
+
+<button onclick="sendMsg('OFF2')" style="width:220px;height:80px;font-size:28px;">
+灯2 关
+</button>
+
+<script>
+
+const options = {
+  connectTimeout: 4000,
+  clientId: 'web_' + Math.random().toString(16).substr(2,8),
+
+  username: 'eps8266nn',
+  password: 'yu155414'
+}
+
+const client = mqtt.connect(
+'wss://b7fea2bf.ala.asia-southeast1.emqxsl.com:8084/mqtt',
+options
+)
+
+client.on('connect', function () {
+  alert('MQTT连接成功')
+})
+
+client.on('error', function (err) {
+  alert('MQTT连接失败')
+})
+
+function sendMsg(msg) {
+
+  client.publish(
+    'home/esp8266/cmd',
+    msg
+  )
+
+  console.log(msg)
+}
+
+</script>
+
+</body>
+</html>
