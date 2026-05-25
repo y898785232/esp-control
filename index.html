@@ -67,14 +67,14 @@ client.on('message', function(topic, message){
 
   let msg = message.toString()
 
-  console.loga
+  console.log("状态:", msg)
 
   if(msg == "ON1"){
     document.getElementById("btn1").style.background = "green"
   }
 
   if(msg == "OFF1"){
-    document.getElementById("btn1").style.background = "red"
+    document.getElementById("btn1").style.background = "gray"
   }
 
   if(msg == "ON2"){
@@ -82,7 +82,7 @@ client.on('message', function(topic, message){
   }
 
   if(msg == "OFF2"){
-    document.getElementById("btn2").style.background = "red"
+    document.getElementById("btn2").style.background = "gray"
   }
 
 })
