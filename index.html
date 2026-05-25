@@ -55,11 +55,7 @@ options
 )
 
 client.on('connect', function () {
-
-  alert('MQTT连接成功')
-
   client.subscribe('home/esp8266/status')
-
 })
 
 function sendMsg(msg) {
