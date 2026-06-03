@@ -2,30 +2,28 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>ESP8266 门禁控制</title>
+  <title>ESP8266 智能控制</title>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <style>
     body {
       text-align: center;
       font-size: 28px;
-      padding-top: 60px;
+      padding-top: 40px;
       font-family: Arial, sans-serif;
       background: #f0f2f5;
     }
-    h2 { color: #333; margin-bottom: 40px; }
+    h2 { color: #333; margin: 20px 0 40px 0; }
 
 
+    /* 滑动开关 - 门禁 */
     .toggle-switch {
       position: relative;
       display: inline-block;
       width: 360px;
       height: 150px;
+      margin: 20px 0;
     }
-
-
     .toggle-switch input { opacity: 0; width: 0; height: 0; }
-
-
     .slider {
       position: absolute;
       cursor: pointer;
@@ -35,8 +33,6 @@
       transition: 0.4s;
       box-shadow: 0 8px 25px rgba(0,0,0,0.2);
     }
-
-
     .slider:before {
       position: absolute;
       content: "";
@@ -48,8 +44,6 @@
       border-radius: 50%;
       transition: 0.4s;
     }
-
-
     input:checked + .slider { background-color: #28a745; }
     input:checked + .slider:before { transform: translateX(200px); }
 
@@ -63,19 +57,35 @@
       color: white;
     }
     .off { left: 50px; }
-    .on { right: 50px; opacity: 0; }
+    .on  { right: 50px; opacity: 0; }
     input:checked + .slider .off { opacity: 0; }
-    input:checked + .slider .on { opacity: 1; }
+    input:checked + .slider .on  { opacity: 1; }
+
+
+    /* 灯按钮 */
+    button {
+      width: 280px;
+      height: 80px;
+      font-size: 28px;
+      margin: 12px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    .lamp-on  { background: #28a745; color: white; }
+    .lamp-off { background: #dc3545; color: white; }
   </style>
 </head>
 <body>
 
 
-  <h2>ESP8266 远程门禁</h2>
+  <h2>ESP8266 智能控制</h2>
 
 
+  <!-- 电控锁 - 滑动开关 -->
+  <p><strong>🔐 电控锁</strong></p>
   <label class="toggle-switch">
-    <input type="checkbox" id="lockSwitch" onchange="handleToggle(this)">
+    <input type="checkbox" id="lockSwitch" onchange="handleLock(this)">
     <div class="slider">
       <span class="off">🔒 关</span>
       <span class="on">🔓 开</span>
@@ -83,8 +93,12 @@
   </label>
 
 
-  <br><br><br>
-  <p><small>向右滑动开锁（0.3秒脉冲）</small></p>
+  <br><br><hr><br>
+
+
+  <!-- 灯1 控制 -->
+  <p><strong>💡 灯 1</strong></p>
+  <button id="lampBtn" class="lamp-off" onclick="toggleLamp()">灯 1 关</button>
 
 
 <script>
@@ -95,6 +109,9 @@ const client = mqtt.connect('wss://b7fea2bf.ala.asia-southeast1.emqxsl.com:8084/
 });
 
 
+let lamp1State = false;
+
+
 client.on('connect', () => {
   console.log("MQTT 已连接");
   client.subscribe('home/esp8266/status');
@@ -102,17 +119,44 @@ client.on('connect', () => {
 
 
 client.on('message', (topic, message) => {
-  if (message.toString() === "LOCK_TRIGGERED") {
+  const msg = message.toString();
+  console.log("收到:", msg);
+
+
+  if (msg === "LOCK_TRIGGERED") {
     const sw = document.getElementById("lockSwitch");
     sw.checked = true;
-    setTimeout(() => sw.checked = false, 1300);
+    setTimeout(() => { sw.checked = false; }, 1300);
+  }
+
+
+  if (msg === "ON1") {
+    lamp1State = true;
+    const btn = document.getElementById("lampBtn");
+    btn.textContent = "灯 1 开";
+    btn.className = "lamp-on";
+  }
+  if (msg === "OFF1") {
+    lamp1State = false;
+    const btn = document.getElementById("lampBtn");
+    btn.textContent = "灯 1 关";
+    btn.className = "lamp-off";
   }
 });
 
 
-function handleToggle(cb) {
+function handleLock(cb) {
   if (cb.checked) {
     client.publish('home/esp8266/cmd', 'OPEN2');
+  }
+}
+
+
+function toggleLamp() {
+  if (lamp1State) {
+    client.publish('home/esp8266/cmd', 'OFF1');
+  } else {
+    client.publish('home/esp8266/cmd', 'ON1');
   }
 }
 </script>
