@@ -3,202 +3,87 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>门禁 + 灯控制智能终端</title>
+  <title>智能控制终端 Pro</title>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <style>
-    body {text-align:center; font-family:Arial,sans-serif; background:#f0f2f5; padding:20px; color:#333;}
-    .card {background:white; max-width:450px; margin:20px auto; padding:20px; border-radius:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
-    h2 {color:#2c3e50; margin-bottom:5px;}
-    .status {font-size:16px; padding:6px 15px; border-radius:30px; display:inline-block; margin-bottom:20px;}
-    .online {background:#28a745; color:white;}
-    .offline {background:#6c757d; color:white;}
-
-
-    .toggle-switch {position:relative; display:inline-block; width:260px; height:90px; margin:10px;}
-    .toggle-switch input {opacity:0; width:0; height:0;}
-    .slider {position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#ccc; border-radius:80px; transition:0.4s;}
-    .slider:before {position:absolute; content:""; height:70px; width:70px; left:10px; bottom:10px; background:white; border-radius:50%; transition:0.4s;}
-    input:checked + .slider {background:#28a745;}
-    input:checked + .slider:before {transform:translateX(170px);}
-    .slider span {position:absolute; top:50%; transform:translateY(-50%); font-size:22px; font-weight:bold; color:white;}
-    .off {left:35px;} .on {right:35px; opacity:0;}
-    input:checked + .slider .off {opacity:0;}
-    input:checked + .slider .on {opacity:1;}
-
-
-    button {width:85%; height:60px; font-size:20px; margin:10px auto; border:none; border-radius:10px; cursor:pointer; font-weight:bold; display:block; transition: 0.2s;}
-    .lamp-off {background:#e2e8f0; color:#4a5568;}
-    .lamp-on {background:#ffc107; color:black;}
-    
-    .timer-section {border-top:2px solid #edf2f7; margin-top:25px; padding-top:20px; text-align:left;}
-    .timer-row {margin:15px 0;}
-    .timer-row label {font-weight:bold; display:block; margin-bottom:5px; color:#4a5568;}
-    .slider-container {display:flex; align-items:center; justify-content:space-between;}
-    input[type=range] {flex-grow:1; margin-right:15px; height:8px; border-radius:5px; cursor:pointer;}
-    .time-val {font-size:18px; font-weight:bold; color:#3b82f6; width:60px; text-align:right;}
-    
-    .switch-box {display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;}
-    .switch {position:relative; display:inline-block; width:50px; height:26px;}
-    .switch input {opacity:0; width:0; height:0;}
-    .slider-round {position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; transition:.4s; border-radius:34px;}
-    .slider-round:before {position:absolute; content:""; height:18px; width:18px; left:4px; bottom:4px; background-color:white; transition:.4s; border-radius:50%;}
-    input:checked + .slider-round {background-color:#3b82f6;}
-    input:checked + .slider-round:before {transform:translateX(24px);}
-    .save-btn {background:#3b82f6; color:white; height:45px; font-size:16px; width:100%; margin-top:15px;}
+    body {text-align:center; font-family:sans-serif; background:#f0f2f5; padding:20px;}
+    .card {background:white; max-width:400px; margin:auto; padding:20px; border-radius:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
+    .btn {width:100%; height:50px; margin:10px 0; border-radius:10px; border:none; font-weight:bold; cursor:pointer;}
+    .lamp-on {background:#ffc107;} .lamp-off {background:#e2e8f0;}
+    .timer-section {margin-top:20px; border-top:1px solid #ddd; padding-top:20px; text-align:left;}
+    .time-input {width:100%; height:40px; margin:5px 0; border:1px solid #ccc; border-radius:5px; font-size:18px;}
+    .save-btn {background:#3b82f6; color:white;}
   </style>
 </head>
 <body>
-
-
   <div class="card">
-    <h2>🔐 智能物联控制终端</h2>
-    <div id="status" class="status offline">● 设备离线</div>
-
-
-    <p><strong>电控锁（门禁）</strong></p>
-    <label class="toggle-switch">
-      <input type="checkbox" id="lockSwitch" onchange="handleLock(this)">
-      <div class="slider">
-        <span class="off">🔒 关闭</span>
-        <span class="on">🔓 开门</span>
-      </div>
-    </label>
-
-
-    <br><hr><br>
-    <p><strong>💡 灯 1 控制</strong></p>
-    <button id="lampBtn" class="lamp-off" onclick="toggleLamp()">灯 1 关</button>
+    <div id="status" style="color:gray;">● 连接中...</div>
+    <button class="btn" style="background:#10b981; color:white;" onclick="send('OPEN2')">🔓 远程开门</button>
+    <button id="lampBtn" class="btn lamp-off" onclick="toggleLamp()">💡 灯 1</button>
 
 
     <div class="timer-section">
-      <div class="switch-box">
-        <span style="font-size:18px; font-weight:bold; color:#2c3e50;">🕒 灯1 网络定时开关</span>
-        <label class="switch">
-          <input type="checkbox" id="timerEnable" onchange="updateSliderState()">
-          <span class="slider-round"></span>
-        </label>
-      </div>
-      <div class="timer-row">
-        <label>开始时间:</label>
-        <div class="slider-container">
-          <input type="range" id="startRange" min="0" max="23" value="15" oninput="showVal('start', this.value)">
-          <span id="startVal" class="time-val">15点</span>
-        </div>
-      </div>
-      <div class="timer-row">
-        <label>结束时间:</label>
-        <div class="slider-container">
-          <input type="range" id="endRange" min="0" max="23" value="17" oninput="showVal('end', this.value)">
-          <span id="endVal" class="time-val">17点</span>
-        </div>
-      </div>
-      <button class="save-btn" onclick="saveTimerSettings()">💾 保存定时时段</button>
+      <strong>🕒 分钟级定时设置</strong>
+      <label class="switch" style="float:right;">
+        <input type="checkbox" id="timerEnable"> 启用
+      </label>
+      <p>开始时间: <input type="time" id="startTime" class="time-input" value="15:00"></p>
+      <p>结束时间: <input type="time" id="endTime" class="time-input" value="17:30"></p>
+      <button class="btn save-btn" onclick="saveSettings()">💾 保存定时</button>
     </div>
   </div>
 
 
 <script>
 const client = mqtt.connect('wss://b7fea2bf.ala.asia-southeast1.emqxsl.com:8084/mqtt', {
-  clientId: 'web_door_' + Math.random().toString(16).substr(2,8),
-  username: 'eps8266nn',
-  password: 'yu155414'
+  clientId: 'web_' + Math.random().toString(16).substr(2,8),
+  username: 'eps8266nn', password: 'yu155414'
 });
 
 
 let lamp1State = false;
-
-
-client.on('connect', () => {
-  console.log("MQTT 已连接");
-  client.subscribe('home/esp8266/status');
-});
+client.on('connect', () => { client.subscribe('home/esp8266/status'); });
 
 
 client.on('message', (topic, message) => {
   const msg = message.toString();
-  console.log("收到消息:", msg);
+  document.getElementById("status").style.color = "green";
+  document.getElementById("status").innerHTML = "● 设备在线";
+
+
+  if (msg === "ON1") { lamp1State = true; updateUI(); }
+  if (msg === "OFF1") { lamp1State = false; updateUI(); }
   
-  if (msg === "LOCK_TRIGGERED" || msg === "ONLINE" || msg === "ON1" || msg === "OFF1" || msg.startsWith("TIMER_INFO_")) {
-    document.getElementById("status").className = "status online";
-    document.getElementById("status").innerHTML = "● 设备在线";
-  }
-  if (msg === "OFFLINE") {
-    document.getElementById("status").className = "status offline";
-    document.getElementById("status").innerHTML = "● 设备离线";
-  }
-
-
-  // 【核心隔离1】：收到 ON1 或 OFF1 只改变灯按钮，绝对不碰定时开关！
-  if (msg === "ON1") {
-    lamp1State = true;
-    document.getElementById("lampBtn").textContent = "灯 1 开";
-    document.getElementById("lampBtn").className = "lamp-on";
-  }
-  if (msg === "OFF1") {
-    lamp1State = false;
-    document.getElementById("lampBtn").textContent = "灯 1 关";
-    document.getElementById("lampBtn").className = "lamp-off";
-  }
-
-
-  // 【核心隔离2】：只有明确收到 TIMER_INFO_ 前缀，才允许刷新定时器面板
   if (msg.startsWith("TIMER_INFO_")) {
     const parts = msg.split('_');
-    if (parts.length >= 5) {
-      const isEnable = (parts[2] === "1"); 
-      document.getElementById("timerEnable").checked = isEnable;
-      document.getElementById("startRange").value = parts[3];
-      document.getElementById("endRange").value = parts[4];
-      document.getElementById("startVal").textContent = parts[3] + "点";
-      document.getElementById("endVal").textContent = parts[4] + "点";
-      updateSliderState();
-    }
+    document.getElementById("timerEnable").checked = (parts[2] === "1");
+    document.getElementById("startTime").value = parts[3];
+    document.getElementById("endTime").value = parts[4];
   }
 });
 
 
-function handleLock(cb) {
-  if (cb.checked) {
-    client.publish('home/esp8266/cmd', 'OPEN2');
-    setTimeout(() => cb.checked = false, 800);
-  }
+function updateUI() {
+  const btn = document.getElementById("lampBtn");
+  btn.className = "btn " + (lamp1State ? "lamp-on" : "lamp-off");
+  btn.innerText = "💡 灯 1 " + (lamp1State ? "已开启" : "已关闭");
 }
 
 
-function toggleLamp() {
-  client.publish('home/esp8266/cmd', lamp1State ? 'OFF1' : 'ON1');
-}
+function send(val) { client.publish('home/esp8266/cmd', val); }
 
 
-function showVal(type, val) {
-  document.getElementById(type + 'Val').textContent = val + "点";
-}
+function toggleLamp() { send(lamp1State ? 'OFF1' : 'ON1'); }
 
 
-function updateSliderState() {
-  const disabled = !document.getElementById("timerEnable").checked;
-  document.getElementById("startRange").disabled = disabled;
-  document.getElementById("endRange").disabled = disabled;
-}
-
-
-function saveTimerSettings() {
+function saveSettings() {
   const isEnable = document.getElementById("timerEnable").checked ? 1 : 0;
-  const start = parseInt(document.getElementById("startRange").value);
-  const end = parseInt(document.getElementById("endRange").value);
-  if(start >= end && isEnable === 1) {
-    alert("❌ 错误：开始时间必须早于结束时间！");
-    return;
-  }
-  const cmdStr = 'SET_TIMER_' + isEnable + '_' + start + '_' + end;
-  client.publish('home/esp8266/cmd', cmdStr);
-  alert("⏳ 定时设置已发送！");
+  const start = document.getElementById("startTime").value;
+  const end = document.getElementById("endTime").value;
+  // 格式：SET_TIMER_1_15:00_17:30
+  send(`SET_TIMER_${isEnable}_${start}_${end}`);
+  alert("设置已下发！");
 }
-
-
-window.onload = function() {
-  updateSliderState();
-};
 </script>
 </body>
 </html>
