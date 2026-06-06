@@ -3,86 +3,178 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>智能控制终端 Pro</title>
+  <title>智能控制终端 Pro Max</title>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <style>
-    body {text-align:center; font-family:sans-serif; background:#f0f2f5; padding:20px;}
-    .card {background:white; max-width:400px; margin:auto; padding:20px; border-radius:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
-    .btn {width:100%; height:50px; margin:10px 0; border-radius:10px; border:none; font-weight:bold; cursor:pointer;}
-    .lamp-on {background:#ffc107;} .lamp-off {background:#e2e8f0;}
-    .timer-section {margin-top:20px; border-top:1px solid #ddd; padding-top:20px; text-align:left;}
-    .time-input {width:100%; height:40px; margin:5px 0; border:1px solid #ccc; border-radius:5px; font-size:18px;}
-    .save-btn {background:#3b82f6; color:white;}
+    body {text-align:center; font-family:Arial,sans-serif; background:#f0f2f5; padding:20px; color:#333;}
+    .card {background:white; max-width:420px; margin:20px auto; padding:20px; border-radius:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
+    h2 {color:#2c3e50; margin-bottom:5px;}
+    .status {font-size:16px; padding:6px 15px; border-radius:30px; display:inline-block; margin-bottom:20px; font-weight:bold;}
+    .online {background:#28a745; color:white;}
+    .offline {background:#6c757d; color:white;}
+    .upgrading {background:#ff9800; color:white; animation: blink 1.5s infinite;}
+
+
+    @keyframes blink {
+      0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; }
+    }
+
+
+    button {width:100%; height:55px; font-size:18px; margin:10px 0; border:none; border-radius:10px; cursor:pointer; font-weight:bold; transition: 0.2s;}
+    .open-btn {background:#10b981; color:white;}
+    .lamp-off {background:#e2e8f0; color:#4a5568;}
+    .lamp-on {background:#ffc107; color:black;}
+    
+    /* 升级按钮样式 */
+    .ota-btn {background:#ef4444; color:white; border: 2px solid #dc2626;}
+    .ota-btn:active {background:#b91c1c;}
+    
+    .timer-section {border-top:1px solid #edf2f7; margin-top:25px; padding-top:20px; text-align:left;}
+    .time-input {width:100%; height:40px; margin:8px 0; border:1px solid #cbd5e1; border-radius:6px; font-size:18px; padding:0 10px; box-sizing: border-box;}
+    .save-btn {background:#3b82f6; color:white; height:45px; font-size:16px;}
+    
+    .switch-box {display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;}
   </style>
 </head>
 <body>
+
+
   <div class="card">
-    <div id="status" style="color:gray;">● 连接中...</div>
-    <button class="btn" style="background:#10b981; color:white;" onclick="send('OPEN2')">🔓 远程开门</button>
-    <button id="lampBtn" class="btn lamp-off" onclick="toggleLamp()">💡 灯 1</button>
+    <h2>🔐 智能物联控制终端</h2>
+    <div id="status" class="status offline">● 设备连接中...</div>
+
+
+    <button class="open-btn" onclick="sendCmd('OPEN2')">🔓 远程开门（电控锁）</button>
+    <button id="lampBtn" class="lamp-off" onclick="toggleLamp()">💡 灯 1 关</button>
 
 
     <div class="timer-section">
-      <strong>🕒 分钟级定时设置</strong>
-      <label class="switch" style="float:right;">
-        <input type="checkbox" id="timerEnable"> 启用
-      </label>
-      <p>开始时间: <input type="time" id="startTime" class="time-input" value="15:00"></p>
-      <p>结束时间: <input type="time" id="endTime" class="time-input" value="17:30"></p>
-      <button class="btn save-btn" onclick="saveSettings()">💾 保存定时</button>
+      <div class="switch-box">
+        <span style="font-size:16px; font-weight:bold; color:#2c3e50;">🕒 灯1 网络定时开关</span>
+        <label>
+          <input type="checkbox" id="timerEnable"> 启用
+        </label>
+      </div>
+      
+      <p style="margin:5px 0;">开始时间:</p>
+      <input type="time" id="startTime" class="time-input" value="15:00">
+      
+      <p style="margin:5px 0; margin-top:10px;">结束时间:</p>
+      <input type="time" id="endTime" class="time-input" value="17:30">
+      
+      <button class="save-btn" onclick="saveSettings()">💾 保存定时时段</button>
+    </div>
+
+
+    <div style="margin-top:25px; border-top:1px solid #edf2f7; padding-top:20px;">
+      <p style="text-align:left; font-size:14px; color:#666; margin:0 0 10px 0;">⚠️ 异地维护专用：下发命令让家里的设备自动连接云端服务器更新固件。</p>
+      <button class="ota-btn" onclick="triggerOTA()">🚀 异地一键远程升级固件</button>
     </div>
   </div>
 
 
 <script>
 const client = mqtt.connect('wss://b7fea2bf.ala.asia-southeast1.emqxsl.com:8084/mqtt', {
-  clientId: 'web_' + Math.random().toString(16).substr(2,8),
-  username: 'eps8266nn', password: 'yu155414'
+  clientId: 'web_pro_' + Math.random().toString(16).substr(2,8),
+  username: 'eps8266nn',
+  password: 'yu155414'
 });
 
 
 let lamp1State = false;
-client.on('connect', () => { client.subscribe('home/esp8266/status'); });
+
+
+client.on('connect', () => {
+  console.log("MQTT 已连接");
+  client.subscribe('home/esp8266/status');
+});
 
 
 client.on('message', (topic, message) => {
   const msg = message.toString();
-  document.getElementById("status").style.color = "green";
-  document.getElementById("status").innerHTML = "● 设备在线";
-
-
-  if (msg === "ON1") { lamp1State = true; updateUI(); }
-  if (msg === "OFF1") { lamp1State = false; updateUI(); }
+  console.log("收到状态:", msg);
+  const statusDiv = document.getElementById("status");
   
+  // 1. 处理特殊的升级状态暗号
+  if (msg === "OTA_UPGRADING") {
+    statusDiv.className = "status upgrading";
+    statusDiv.innerHTML = "● 固件云端升级中，请勿断电...";
+    return;
+  }
+  if (msg === "OTA_FAILED") {
+    statusDiv.className = "status online";
+    statusDiv.innerHTML = "● 设备在线";
+    alert("❌ 硬件返回提示：云端固件下载或升级失败！请检查代码中的固件URL是否正确。");
+    return;
+  }
+
+
+  // 2. 正常在线状态恢复
+  if (msg === "LOCK_TRIGGERED" || msg === "ONLINE" || msg === "ON1" || msg === "OFF1" || msg.startsWith("TIMER_INFO_")) {
+    statusDiv.className = "status online";
+    statusDiv.innerHTML = "● 设备在线";
+  }
+  if (msg === "OFFLINE") {
+    statusDiv.className = "status offline";
+    statusDiv.innerHTML = "● 设备离线";
+  }
+
+
+  // 3. 灯状态同步
+  if (msg === "ON1") {
+    lamp1State = true;
+    document.getElementById("lampBtn").textContent = "💡 灯 1 已开启";
+    document.getElementById("lampBtn").className = "lamp-on";
+  }
+  if (msg === "OFF1") {
+    lamp1State = false;
+    document.getElementById("lampBtn").textContent = "💡 灯 1 已关闭";
+    document.getElementById("lampBtn").className = "lamp-off";
+  }
+
+
+  // 4. 定时信息同步（新格式解析 HH:mm）
   if (msg.startsWith("TIMER_INFO_")) {
     const parts = msg.split('_');
-    document.getElementById("timerEnable").checked = (parts[2] === "1");
-    document.getElementById("startTime").value = parts[3];
-    document.getElementById("endTime").value = parts[4];
+    if (parts.length >= 5) {
+      document.getElementById("timerEnable").checked = (parts[2] === "1");
+      document.getElementById("startTime").value = parts[3]; // 自动填入如 "15:00"
+      document.getElementById("endTime").value = parts[4];   // 自动填入如 "17:30"
+    }
   }
 });
 
 
-function updateUI() {
-  const btn = document.getElementById("lampBtn");
-  btn.className = "btn " + (lamp1State ? "lamp-on" : "lamp-off");
-  btn.innerText = "💡 灯 1 " + (lamp1State ? "已开启" : "已关闭");
+function sendCmd(val) {
+  client.publish('home/esp8266/cmd', val);
 }
 
 
-function send(val) { client.publish('home/esp8266/cmd', val); }
-
-
-function toggleLamp() { send(lamp1State ? 'OFF1' : 'ON1'); }
+function toggleLamp() {
+  sendCmd(lamp1State ? 'OFF1' : 'ON1');
+}
 
 
 function saveSettings() {
   const isEnable = document.getElementById("timerEnable").checked ? 1 : 0;
-  const start = document.getElementById("startTime").value;
-  const end = document.getElementById("endTime").value;
-  // 格式：SET_TIMER_1_15:00_17:30
-  send(`SET_TIMER_${isEnable}_${start}_${end}`);
-  alert("设置已下发！");
+  const start = document.getElementById("startTime").value; // 格式: "15:30"
+  const end = document.getElementById("endTime").value;     // 格式: "18:45"
+  
+  if(!start || !end) {
+    alert("❌ 请选择完整的开始和结束时间！");
+    return;
+  }
+  
+  // 拼接成：SET_TIMER_1_15:30_18:45
+  sendCmd(`SET_TIMER_${isEnable}_${start}_${end}`);
+  alert("⏳ 定时设置已成功发送给硬件！");
+}
+
+
+function triggerOTA() {
+  if (confirm("⚠️ 确定要远程升级固件吗？\n\n点击后，处于家中的设备将自动前往配置的云端网址下载新固件并自动重启。升级期间设备会短暂断线约15-30秒。")) {
+    sendCmd("DO_OTA_UPDATE");
+  }
 }
 </script>
 </body>
