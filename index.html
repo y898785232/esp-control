@@ -13,8 +13,6 @@
     .online {background:#28a745; color:white;}
     .offline {background:#6c757d; color:white;}
 
-
-    /* 门禁开关样式 */
     .toggle-switch {position:relative; display:inline-block; width:260px; height:90px; margin:10px;}
     .toggle-switch input {opacity:0; width:0; height:0;}
     .slider {position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#ccc; border-radius:80px; transition:0.4s;}
@@ -26,13 +24,10 @@
     input:checked + .slider .off {opacity:0;}
     input:checked + .slider .on {opacity:1;}
 
-
-    /* 按钮基础样式 */
     button {width:85%; height:60px; font-size:20px; margin:10px auto; border:none; border-radius:10px; cursor:pointer; font-weight:bold; display:block; transition: 0.2s;}
     .lamp-off {background:#e2e8f0; color:#4a5568;}
     .lamp-on {background:#ffc107; color:black;}
     
-    /* ==================== 新增：定时控制器专属样式 ==================== */
     .timer-section {border-top:2px solid #edf2f7; margin-top:25px; padding-top:20px; text-align:left;}
     .timer-row {margin:15px 0;}
     .timer-row label {font-weight:bold; display:block; margin-bottom:5px; color:#4a5568;}
@@ -40,7 +35,6 @@
     input[type=range] {flex-grow:1; margin-right:15px; height:8px; border-radius:5px; cursor:pointer;}
     .time-val {font-size:18px; font-weight:bold; color:#3b82f6; width:60px; text-align:right;}
     
-    /* 定时总开关（滑块式） */
     .switch-box {display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;}
     .switch {position:relative; display:inline-block; width:50px; height:26px;}
     .switch input {opacity:0; width:0; height:0;}
@@ -49,16 +43,13 @@
     input:checked + .slider-round {background-color:#3b82f6;}
     input:checked + .slider-round:before {transform:translateX(24px);}
     .save-btn {background:#3b82f6; color:white; height:45px; font-size:16px; width:100%; margin-top:15px;}
-    .save-btn:active {background:#2563eb;}
   </style>
 </head>
 <body>
 
-
   <div class="card">
     <h2>🔐 智能物联控制终端</h2>
     <div id="status" class="status offline">● 设备离线</div>
-
 
     <p><strong>电控锁（门禁）</strong></p>
     <label class="toggle-switch">
@@ -69,11 +60,9 @@
       </div>
     </label>
 
-
     <br><hr><br>
     <p><strong>💡 灯 1 控制</strong></p>
     <button id="lampBtn" class="lamp-off" onclick="toggleLamp()">灯 1 关</button>
-
 
     <div class="timer-section">
       <div class="switch-box">
@@ -83,7 +72,6 @@
           <span class="slider-round"></span>
         </label>
       </div>
-      
       <div class="timer-row">
         <label>开始时间:</label>
         <div class="slider-container">
@@ -91,7 +79,6 @@
           <span id="startVal" class="time-val">15点</span>
         </div>
       </div>
-      
       <div class="timer-row">
         <label>结束时间:</label>
         <div class="slider-container">
@@ -99,35 +86,29 @@
           <span id="endVal" class="time-val">17点</span>
         </div>
       </div>
-      
       <button class="save-btn" onclick="saveTimerSettings()">💾 保存定时时段</button>
     </div>
   </div>
 
-
 <script>
-// 连接远端 MQTT 服务器
 const client = mqtt.connect('wss://b7fea2bf.ala.asia-southeast1.emqxsl.com:8084/mqtt', {
   clientId: 'web_door_' + Math.random().toString(16).substr(2,8),
   username: 'eps8266nn',
   password: 'yu155414'
 });
 
-
 let lamp1State = false;
-
 
 client.on('connect', () => {
   console.log("MQTT 已连接");
   client.subscribe('home/esp8266/status');
 });
 
-
+// 处理消息的“大盒子”开始
 client.on('message', (topic, message) => {
   const msg = message.toString();
   console.log("收到消息:", msg);
   
-  // 基础在线状态识别
   if (msg === "LOCK_TRIGGERED" || msg === "ONLINE" || msg === "ON1" || msg === "OFF1" || msg.startsWith("TIMER_INFO_")) {
     document.getElementById("status").className = "status online";
     document.getElementById("status").innerHTML = "● 设备在线";
@@ -137,8 +118,6 @@ client.on('message', (topic, message) => {
     document.getElementById("status").innerHTML = "● 设备离线";
   }
 
-
-  // 灯1状态同步
   if (msg === "ON1") {
     lamp1State = true;
     document.getElementById("lampBtn").textContent = "灯 1 开";
@@ -150,28 +129,18 @@ client.on('message', (topic, message) => {
     document.getElementById("lampBtn").className = "lamp-off";
   }
 
-
-// ==================== 修正后的同步定时信息逻辑 ====================
   if (msg.startsWith("TIMER_INFO_")) {
     const parts = msg.split('_');
-    // 之前数错格子了：parts[0]是TIMER, parts[1]是INFO
-    // 所以真正的使能状态(0或1)其实是在 parts[2]
     const isEnable = (parts[2] === "1"); 
-    const start = parts[3];
-    const end = parts[4];
-    
-    // 更新网页界面的状态
     document.getElementById("timerEnable").checked = isEnable;
-    document.getElementById("startRange").value = start;
-    document.getElementById("endRange").value = end;
-    document.getElementById("startVal").textContent = start + "点";
-    document.getElementById("endVal").textContent = end + "点";
-    
-    updateSliderState(); // 刷新滑动条的可点状态
+    document.getElementById("startRange").value = parts[3];
+    document.getElementById("endRange").value = parts[4];
+    document.getElementById("startVal").textContent = parts[3] + "点";
+    document.getElementById("endVal").textContent = parts[4] + "点";
+    updateSliderState();
   }
+}); // <--- 刚才就是少了这一行结尾！
 
-
-// 门禁控制
 function handleLock(cb) {
   if (cb.checked) {
     client.publish('home/esp8266/cmd', 'OPEN2');
@@ -179,49 +148,33 @@ function handleLock(cb) {
   }
 }
 
-
-// 灯控制
 function toggleLamp() {
   client.publish('home/esp8266/cmd', lamp1State ? 'OFF1' : 'ON1');
 }
 
-
-// 滑动条拖动时，动态显示当前数字
 function showVal(type, val) {
   document.getElementById(type + 'Val').textContent = val + "点";
 }
 
-
-// 控制滑动条是否可用（如果关闭了定时总开关，滑动条会变灰，防止误操作）
 function updateSliderState() {
   const disabled = !document.getElementById("timerEnable").checked;
   document.getElementById("startRange").disabled = disabled;
   document.getElementById("endRange").disabled = disabled;
 }
 
-
-// ==================== 新增：打包发送定时设置给固件 ====================
 function saveTimerSettings() {
   const isEnable = document.getElementById("timerEnable").checked ? 1 : 0;
   const start = parseInt(document.getElementById("startRange").value);
   const end = parseInt(document.getElementById("endRange").value);
-  
-  // 基础防错逻辑
   if(start >= end && isEnable === 1) {
     alert("❌ 错误：开始时间必须早于结束时间！");
     return;
   }
-  
-  // 拼接成和新固件约定的命令格式：SET_TIMER_使能_开始_结束
   const cmdStr = 'SET_TIMER_' + isEnable + '_' + start + '_' + end;
-  
-  // 发布指令
   client.publish('home/esp8266/cmd', cmdStr);
-  alert("⏳ 定时设置已发送！当前时段: " + start + "点 到 " + end + "点");
+  alert("⏳ 定时设置已发送！");
 }
 
-
-// 页面首次加载时初始化滑块状态
 window.onload = function() {
   updateSliderState();
 };
