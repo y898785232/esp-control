@@ -11,6 +11,7 @@
     .online {background:#28a745; color:white;}
     .offline {background:#6c757d; color:white;}
 
+
     .toggle-switch {position:relative; display:inline-block; width:380px; height:160px; margin:20px;}
     .toggle-switch input {opacity:0; width:0; height:0;}
     .slider {position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#ccc; border-radius:80px; transition:0.4s;}
@@ -22,14 +23,20 @@
     input:checked + .slider .off {opacity:0;}
     input:checked + .slider .on {opacity:1;}
 
-    button {width:260px; height:70px; font-size:24px; margin:8px; border:none; border-radius:10px; cursor:pointer;}
+
+    button {width:260px; height:70px; font-size:24px; margin:8px; border:none; border-radius:10px; cursor:pointer; transition: 0.2s;}
     .timer-btn {background:#ffc107; color:black;}
+    
+    /* 补全灯的颜色样式 */
+    .lamp-off {background:#6c757d; color:white;}
+    .lamp-on {background:#ffc107; color:black;}
   </style>
 </head>
 <body>
   <h2>🔐 智能门禁控制</h2>
   
   <div id="status" class="status offline">● 设备离线</div>
+
 
   <p><strong>电控锁</strong></p>
   <label class="toggle-switch">
@@ -40,40 +47,43 @@
     </div>
   </label>
 
+
   <br><hr><br>
   <p><strong>💡 灯 1</strong></p>
   <button id="lampBtn" class="lamp-off" onclick="toggleLamp()">灯 1 关</button>
 
+
 <br><br>
 <p><strong>💡 灯 1 定时</strong></p>
-<button onclick="timerLamp(5)">5分钟后关灯</button>
-<button onclick="timerLamp(10)">10分钟后关灯</button>
-<button onclick="timerLamp(30)">30分钟后关灯</button>
+<button class="timer-btn" onclick="timerLamp(5)">5分钟后关灯</button>
+<button class="timer-btn" onclick="timerLamp(10)">10分钟后关灯</button>
+<button class="timer-btn" onclick="timerLamp(30)">30分钟后关灯</button>
+
 
 <script>
+// 移除了网页端的 will 遗嘱，防止网页关闭时误杀硬件状态
 const client = mqtt.connect('wss://b7fea2bf.ala.asia-southeast1.emqxsl.com:8084/mqtt', {
   clientId: 'web_door_' + Math.random().toString(16).substr(2,8),
   username: 'eps8266nn',
-  password: 'yu155414',
-  will: {
-    topic: 'home/esp8266/status',
-    payload: 'OFFLINE',
-    qos: 1,
-    retain: true
-  }
+  password: 'yu155414'
 });
+
 
 let lamp1State = false;
 
+
 client.on('connect', () => {
   console.log("MQTT 已连接");
+  // 网页订阅状态主题
   client.subscribe('home/esp8266/status');
 });
 
+
 client.on('message', (topic, message) => {
   const msg = message.toString();
+  console.log("收到消息:", msg); // 方便你在控制台调试
   
-  if (msg === "LOCK_TRIGGERED" || msg === "ONLINE") {
+  if (msg === "LOCK_TRIGGERED" || msg === "ONLINE" || msg === "ON1" || msg === "OFF1") {
     document.getElementById("status").className = "status online";
     document.getElementById("status").innerHTML = "● 设备在线";
   }
@@ -81,6 +91,7 @@ client.on('message', (topic, message) => {
     document.getElementById("status").className = "status offline";
     document.getElementById("status").innerHTML = "● 设备离线";
   }
+
 
   if (msg === "ON1") {
     lamp1State = true;
@@ -94,22 +105,27 @@ client.on('message', (topic, message) => {
   }
 });
 
+
 function handleLock(cb) {
   if (cb.checked) {
     client.publish('home/esp8266/cmd', 'OPEN2');
+    // 门禁锁通常是点动，800毫秒后自动弹回关闭状态
     setTimeout(() => cb.checked = false, 800);
   }
 }
+
 
 function toggleLamp() {
   client.publish('home/esp8266/cmd', lamp1State ? 'OFF1' : 'ON1');
 }
 
+
 function timerLamp(minutes) {
-if (confirm(确定要在 ${minutes} 分钟后自动关闭灯1吗？)) {
-client.publish('home/esp8266/cmd', LAMP_TIMER_${minutes});
-alert(已设置 ${minutes} 分钟后自动关灯);
-}
+  // 修复了这里的中文引号语法错误
+  if (confirm('确定要在 ' + minutes + ' 分钟后自动关闭灯1吗？')) {
+    client.publish('home/esp8266/cmd', 'LAMP_TIMER_' + minutes);
+    alert('已设置 ' + minutes + ' 分钟后自动关灯');
+  }
 }
 </script>
 </body>
