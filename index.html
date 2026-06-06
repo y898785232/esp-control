@@ -13,6 +13,7 @@
     .online {background:#28a745; color:white;}
     .offline {background:#6c757d; color:white;}
 
+
     .toggle-switch {position:relative; display:inline-block; width:260px; height:90px; margin:10px;}
     .toggle-switch input {opacity:0; width:0; height:0;}
     .slider {position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#ccc; border-radius:80px; transition:0.4s;}
@@ -23,6 +24,7 @@
     .off {left:35px;} .on {right:35px; opacity:0;}
     input:checked + .slider .off {opacity:0;}
     input:checked + .slider .on {opacity:1;}
+
 
     button {width:85%; height:60px; font-size:20px; margin:10px auto; border:none; border-radius:10px; cursor:pointer; font-weight:bold; display:block; transition: 0.2s;}
     .lamp-off {background:#e2e8f0; color:#4a5568;}
@@ -47,9 +49,11 @@
 </head>
 <body>
 
+
   <div class="card">
     <h2>🔐 智能物联控制终端</h2>
     <div id="status" class="status offline">● 设备离线</div>
+
 
     <p><strong>电控锁（门禁）</strong></p>
     <label class="toggle-switch">
@@ -60,9 +64,11 @@
       </div>
     </label>
 
+
     <br><hr><br>
     <p><strong>💡 灯 1 控制</strong></p>
     <button id="lampBtn" class="lamp-off" onclick="toggleLamp()">灯 1 关</button>
+
 
     <div class="timer-section">
       <div class="switch-box">
@@ -90,6 +96,7 @@
     </div>
   </div>
 
+
 <script>
 const client = mqtt.connect('wss://b7fea2bf.ala.asia-southeast1.emqxsl.com:8084/mqtt', {
   clientId: 'web_door_' + Math.random().toString(16).substr(2,8),
@@ -97,14 +104,16 @@ const client = mqtt.connect('wss://b7fea2bf.ala.asia-southeast1.emqxsl.com:8084/
   password: 'yu155414'
 });
 
+
 let lamp1State = false;
+
 
 client.on('connect', () => {
   console.log("MQTT 已连接");
   client.subscribe('home/esp8266/status');
 });
 
-// 处理消息的“大盒子”开始
+
 client.on('message', (topic, message) => {
   const msg = message.toString();
   console.log("收到消息:", msg);
@@ -118,6 +127,8 @@ client.on('message', (topic, message) => {
     document.getElementById("status").innerHTML = "● 设备离线";
   }
 
+
+  // 【核心隔离1】：收到 ON1 或 OFF1 只改变灯按钮，绝对不碰定时开关！
   if (msg === "ON1") {
     lamp1State = true;
     document.getElementById("lampBtn").textContent = "灯 1 开";
@@ -129,17 +140,22 @@ client.on('message', (topic, message) => {
     document.getElementById("lampBtn").className = "lamp-off";
   }
 
+
+  // 【核心隔离2】：只有明确收到 TIMER_INFO_ 前缀，才允许刷新定时器面板
   if (msg.startsWith("TIMER_INFO_")) {
     const parts = msg.split('_');
-    const isEnable = (parts[2] === "1"); 
-    document.getElementById("timerEnable").checked = isEnable;
-    document.getElementById("startRange").value = parts[3];
-    document.getElementById("endRange").value = parts[4];
-    document.getElementById("startVal").textContent = parts[3] + "点";
-    document.getElementById("endVal").textContent = parts[4] + "点";
-    updateSliderState();
+    if (parts.length >= 5) {
+      const isEnable = (parts[2] === "1"); 
+      document.getElementById("timerEnable").checked = isEnable;
+      document.getElementById("startRange").value = parts[3];
+      document.getElementById("endRange").value = parts[4];
+      document.getElementById("startVal").textContent = parts[3] + "点";
+      document.getElementById("endVal").textContent = parts[4] + "点";
+      updateSliderState();
+    }
   }
-}); // <--- 刚才就是少了这一行结尾！
+});
+
 
 function handleLock(cb) {
   if (cb.checked) {
@@ -148,19 +164,23 @@ function handleLock(cb) {
   }
 }
 
+
 function toggleLamp() {
   client.publish('home/esp8266/cmd', lamp1State ? 'OFF1' : 'ON1');
 }
 
+
 function showVal(type, val) {
   document.getElementById(type + 'Val').textContent = val + "点";
 }
+
 
 function updateSliderState() {
   const disabled = !document.getElementById("timerEnable").checked;
   document.getElementById("startRange").disabled = disabled;
   document.getElementById("endRange").disabled = disabled;
 }
+
 
 function saveTimerSettings() {
   const isEnable = document.getElementById("timerEnable").checked ? 1 : 0;
@@ -174,6 +194,7 @@ function saveTimerSettings() {
   client.publish('home/esp8266/cmd', cmdStr);
   alert("⏳ 定时设置已发送！");
 }
+
 
 window.onload = function() {
   updateSliderState();
