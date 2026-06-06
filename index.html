@@ -151,15 +151,16 @@ client.on('message', (topic, message) => {
   }
 
 
-  // ==================== 新增：接收并同步硬件发来的定时信息 ====================
-  // 消息格式样例：TIMER_INFO_1_15_17 (前缀_使能状态_开始时间_结束时间)
+// ==================== 修正后的同步定时信息逻辑 ====================
   if (msg.startsWith("TIMER_INFO_")) {
     const parts = msg.split('_');
-    const isEnable = (parts[2] === "1");
+    // 之前数错格子了：parts[0]是TIMER, parts[1]是INFO
+    // 所以真正的使能状态(0或1)其实是在 parts[2]
+    const isEnable = (parts[2] === "1"); 
     const start = parts[3];
     const end = parts[4];
     
-    // 更新网页界面的状态，使其与硬件实际运行的数据保持绝对同步
+    // 更新网页界面的状态
     document.getElementById("timerEnable").checked = isEnable;
     document.getElementById("startRange").value = start;
     document.getElementById("endRange").value = end;
@@ -168,7 +169,6 @@ client.on('message', (topic, message) => {
     
     updateSliderState(); // 刷新滑动条的可点状态
   }
-});
 
 
 // 门禁控制
