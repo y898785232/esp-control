@@ -226,12 +226,11 @@ let lastHeartbeat = 0;
 client.on('connect', () => {
   console.log("MQTT 服务器已连接");
   
-  // 稳妥订阅状态公路
   client.subscribe('home/esp8266/status', (err) => {
     if (!err) {
       console.log("状态公路建立完毕，准备打招呼...");
       
-      // 🚀【延迟0.5秒】：等服务器转发通道彻底焊死，再优雅地向单片机要数据
+      // 🚀【延迟0.5秒】：等服务器通道彻底建立好，再向单片机要数据
       setTimeout(() => {
         console.log("📢 主动索要状态：WHO_IS_ONLINE");
         client.publish('home/esp8266/cmd', 'WHO_IS_ONLINE');
