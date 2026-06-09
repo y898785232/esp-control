@@ -157,15 +157,15 @@
     <div class="grid-status">
         <div class="status-item">
             <span class="status-label">核心设备状态</span>
-            <span id="dev-status" class="badge bg-offline">检查中...</span>
+            <span id="dev-status" class="badge bg-offline">等待连接...</span>
         </div>
         <div class="status-item">
             <span class="status-label">照明灯状态</span>
-            <span id="lamp-status" class="badge bg-offline">UNKNOWN</span>
+            <span id="lamp-status" class="badge bg-offline">未刷新</span>
         </div>
         <div class="status-item" style="grid-column: span 2;">
             <span class="status-label">水箱水位雷达</span>
-            <span id="water-status" class="badge bg-online">探测中...</span>
+            <span id="water-status" class="badge bg-offline">等待数据...</span>
         </div>
     </div>
 
@@ -219,22 +219,28 @@ const client = mqtt.connect('wss://b7fea2bf.ala.asia-southeast1.emqxsl.com:8084/
 
 
 let lampState = false;
-let lastHeartbeat = 0; // 核心：心跳追踪变量
+let lastHeartbeat = 0; 
 
 
 client.on('connect', () => {
   console.log("MQTT 服务器已连接");
   client.subscribe('home/esp8266/status');
+  
+  // 🚀 【核心修复】：网页一连上服务器，立刻主动向公路发暗号催促单片机：“我上线了，快把状态给我！”
+  // 这样单片机收到后会立刻执行 publishAllStatuses()，网页瞬间刷新，再也不用傻等了！
+  client.publish('home/esp8266/cmd', 'WHO_IS_ONLINE'); 
 });
 
 
-// 🌟 解决假在线：每3秒雷达检测一次单片机有没有彻底失联
+// 🌟 智能雷达防假在线
 setInterval(() => {
+  if (lastHeartbeat === 0) return; // 如果刚开网页还没收到过任何数据，先不判定离线
+  
   const currentTime = Date.now();
-  // 如果超过 12 秒没有收到过单片机发来的任何 MQTT 信息，判定单片机硬件断电或断网
-  if (lastHeartbeat !== 0 && (currentTime - lastHeartbeat > 12000)) {
+  // 15秒内如果单片机装聋作哑，说明它断电或者断网了
+  if (currentTime - lastHeartbeat > 15000) {
     document.getElementById("dev-status").className = "badge bg-offline";
-    document.getElementById("dev-status").textContent = "已离线";
+    document.getElementById("dev-status").textContent = "已离线 ❌";
   }
 }, 3000);
 
@@ -244,30 +250,30 @@ client.on('message', (topic, message) => {
   console.log("收到单片机密令:", msg);
 
 
-  // 📢 只要收到消息，不管收到什么，证明单片机绝对活着
+  // 📢 只要收到消息，更新心跳，状态框秒变绿色“正常在线”
   lastHeartbeat = Date.now();
   document.getElementById("dev-status").className = "badge bg-online";
-  document.getElementById("dev-status").textContent = "在线";
+  document.getElementById("dev-status").textContent = "正常在线 🟢";
 
 
-  // 灯光逻辑解析
+  // 灯光逻辑解析（🛠️ 彻底汉化）
   if (msg === "ON1") {
     lampState = true;
     document.getElementById("btn-lamp").textContent = "灯1 已开启";
     document.getElementById("lamp-status").className = "badge bg-online";
-    document.getElementById("lamp-status").textContent = "ON";
+    document.getElementById("lamp-status").textContent = "已开灯 💡";
   }
   if (msg === "OFF1") {
     lampState = false;
     document.getElementById("btn-lamp").textContent = "灯1 已关闭";
     document.getElementById("lamp-status").className = "badge bg-offline";
-    document.getElementById("lamp-status").textContent = "OFF";
+    document.getElementById("lamp-status").textContent = "已关灯 🔴";
   }
 
 
-  // 🌟 新增：水位见底报警解析
+  // 水位见底报警解析（🛠️ 彻底汉化）
   if (msg === "WATER_LOW_ALARM") {
-    document.getElementById("water-status").className = "badge bg-offline bg-warning"; // 黄红闪烁警告
+    document.getElementById("water-status").className = "badge bg-offline bg-warning"; 
     document.getElementById("water-status").textContent = "⚠️ 见底缺水！";
   }
   if (msg === "WATER_NORMAL") {
@@ -313,7 +319,6 @@ function saveTimer() {
   const enabled = document.getElementById("timer-enable").checked ? 1 : 0;
   const start = document.getElementById("start-time").value;
   const end = document.getElementById("end-time").value;
-  // 修复了原代码中错误的括号拼写逻辑
   client.publish('home/esp8266/cmd', `SET_TIMER_${enabled}_${start}_${end}`);
   alert("⏰ 定时配置已发射到云端！");
 }
