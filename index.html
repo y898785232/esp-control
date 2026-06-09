@@ -222,23 +222,31 @@ let lampState = false;
 let lastHeartbeat = 0; 
 
 
+// 🛠️【核心修复】：稳重版连接与对暗号机制
 client.on('connect', () => {
   console.log("MQTT 服务器已连接");
-  client.subscribe('home/esp8266/status');
   
-  // 🚀 【核心修复】：网页一连上服务器，立刻主动向公路发暗号催促单片机：“我上线了，快把状态给我！”
-  // 这样单片机收到后会立刻执行 publishAllStatuses()，网页瞬间刷新，再也不用傻等了！
-  client.publish('home/esp8266/cmd', 'WHO_IS_ONLINE'); 
+  // 稳妥订阅状态公路
+  client.subscribe('home/esp8266/status', (err) => {
+    if (!err) {
+      console.log("状态公路建立完毕，准备打招呼...");
+      
+      // 🚀【延迟0.5秒】：等服务器转发通道彻底焊死，再优雅地向单片机要数据
+      setTimeout(() => {
+        console.log("📢 主动索要状态：WHO_IS_ONLINE");
+        client.publish('home/esp8266/cmd', 'WHO_IS_ONLINE');
+      }, 500);
+    }
+  });
 });
 
 
-// 🌟 智能雷达防假在线
+// 🌟 智能雷达防假在线（配合10秒单片机保底，放宽到30秒容错，防止误报离线）
 setInterval(() => {
-  if (lastHeartbeat === 0) return; // 如果刚开网页还没收到过任何数据，先不判定离线
+  if (lastHeartbeat === 0) return; 
   
   const currentTime = Date.now();
-  // 15秒内如果单片机装聋作哑，说明它断电或者断网了
-  if (currentTime - lastHeartbeat > 15000) {
+  if (currentTime - lastHeartbeat > 30000) { 
     document.getElementById("dev-status").className = "badge bg-offline";
     document.getElementById("dev-status").textContent = "已离线 ❌";
   }
@@ -250,13 +258,13 @@ client.on('message', (topic, message) => {
   console.log("收到单片机密令:", msg);
 
 
-  // 📢 只要收到消息，更新心跳，状态框秒变绿色“正常在线”
+  // 📢 只要收到任何消息，雷达秒变绿，证明设备铁定在线
   lastHeartbeat = Date.now();
   document.getElementById("dev-status").className = "badge bg-online";
   document.getElementById("dev-status").textContent = "正常在线 🟢";
 
 
-  // 灯光逻辑解析（🛠️ 彻底汉化）
+  // 灯光状态解析
   if (msg === "ON1") {
     lampState = true;
     document.getElementById("btn-lamp").textContent = "灯1 已开启";
@@ -271,7 +279,7 @@ client.on('message', (topic, message) => {
   }
 
 
-  // 水位见底报警解析（🛠️ 彻底汉化）
+  // 水位状态解析
   if (msg === "WATER_LOW_ALARM") {
     document.getElementById("water-status").className = "badge bg-offline bg-warning"; 
     document.getElementById("water-status").textContent = "⚠️ 见底缺水！";
@@ -287,7 +295,7 @@ client.on('message', (topic, message) => {
   }
 
 
-  // 定时器逻辑解析
+  // 定时器状态解析
   if (msg.startsWith("TIMER_INFO_")) {
     const parts = msg.split('_');
     if (parts.length >= 4) {
