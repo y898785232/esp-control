@@ -3,338 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>终端控制中心</title>
+    <title>鸡舍控制中心</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: #f4f6f9;
-            margin: 0;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            box-sizing: border-box;
-        }
-        .container {
-            max-width: 480px;
-            width: 100%;
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 20px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.05);
-            box-sizing: border-box;
-        }
-        h2 {
-            text-align: center;
-            color: #1a1a1a;
-            margin-top: 5px;
-            margin-bottom: 20px;
-            font-size: 22px;
-            letter-spacing: 0.5px;
-        }
-        .grid-status {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .status-item {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid #edf0f2;
-            box-sizing: border-box;
-        }
-        .status-label {
-            font-size: 12px;
-            color: #8e8e93;
-            margin-bottom: 6px;
-        }
-        .badge {
-            font-size: 14px;
-            font-weight: bold;
-            padding: 5px 12px;
-            border-radius: 20px;
-            width: 80%;
-            text-align: center;
-            transition: all 0.3s;
-        }
-        .bg-online { background-color: #34c759; color: white; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f4f6f9; margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; box-sizing: border-box; }
+        .container { max-width: 480px; width: 100%; background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.05); box-sizing: border-box; }
+        h2 { text-align: center; color: #1a1a1a; margin-top: 5px; margin-bottom: 20px; font-size: 22px; }
+        .grid-status { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+        .status-item { background: #f8f9fa; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; align-items: center; border: 1px solid #edf0f2; box-sizing: border-box; }
+        .status-label { font-size: 12px; color: #8e8e93; margin-bottom: 6px; }
+        .badge { font-size: 14px; font-weight: bold; padding: 5px 12px; border-radius: 20px; width: 80%; text-align: center; transition: all 0.3s; }
+        .bg-online  { background-color: #34c759; color: white; }
         .bg-offline { background-color: #ff3b30; color: white; }
         .bg-warning { background-color: #ffcc00; color: #1c1c1e; animation: blink 1.2s infinite; }
-        
-        @keyframes blink {
-            0% { opacity: 1; }
-            50% { opacity: 0.4; }
-            100% { opacity: 1; }
-        }
-
-
-        .card {
-            border: 1px solid #edf0f2;
-            background: #ffffff;
-            border-radius: 16px;
-            padding: 18px;
-            margin-bottom: 15px;
-            box-sizing: border-box;
-        }
-        .card-title {
-            font-weight: 600;
-            font-size: 15px;
-            margin-bottom: 14px;
-            color: #1c1c1e;
-            display: flex;
-            align-items: center;
-        }
-        .btn {
-            display: block;
-            width: 100%;
-            padding: 14px;
-            font-size: 16px;
-            font-weight: 600;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
-            text-align: center;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+        .bg-waiting { background-color: #8e8e93; color: white; }
+        @keyframes blink { 0%{opacity:1} 50%{opacity:0.4} 100%{opacity:1} }
+        .card { border: 1px solid #edf0f2; border-radius: 16px; padding: 18px; margin-bottom: 15px; box-sizing: border-box; }
+        .card-title { font-weight: 600; font-size: 15px; margin-bottom: 14px; color: #1c1c1e; }
+        .btn { display: block; width: 100%; padding: 14px; font-size: 16px; font-weight: 600; border: none; border-radius: 12px; cursor: pointer; transition: background 0.2s, transform 0.1s, opacity 0.2s; text-align: center; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         .btn:active { transform: scale(0.98); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
         .btn-primary { background: #007aff; color: white; }
-        .btn-primary:hover { background: #0066cc; }
         .btn-success { background: #34c759; color: white; }
-        .btn-success:hover { background: #28a745; }
-        .btn-danger { background: #ff3b30; color: white; }
-        .btn-danger:hover { background: #e03126; }
-        
-        .timer-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-        }
-        .timer-inputs {
-            display: flex;
-            gap: 10px;
-            width: 100%;
-            margin-bottom: 14px;
-        }
-        .time-box {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
+        .btn-danger  { background: #ff3b30; color: white; }
+        .timer-inputs { display: flex; gap: 10px; width: 100%; margin-bottom: 14px; }
+        .time-box { flex: 1; display: flex; flex-direction: column; gap: 5px; }
         .time-box span { font-size: 12px; color: #8e8e93; }
-        input[type="time"] {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #d1d1d6;
-            border-radius: 8px;
-            font-size: 14px;
-            background: #f8f9fa;
-            box-sizing: border-box;
-        }
-        input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            margin-right: 6px;
-        }
+        input[type="time"] { width: 100%; padding: 10px; border: 1px solid #d1d1d6; border-radius: 8px; font-size: 14px; background: #f8f9fa; box-sizing: border-box; }
+        input[type="checkbox"] { width: 18px; height: 18px; margin-right: 6px; }
+        #mqtt-banner { font-size: 12px; text-align: center; padding: 6px 0; margin-bottom: 14px; color: #8e8e93; }
     </style>
 </head>
 <body>
-
-
 <div class="container">
-    <h2>🏠 智能控制终端</h2>
-    
+    <h2>鸡舍智能控制中心</h2>
+    <div id="mqtt-banner">正在连接云端服务器...</div>
     <div class="grid-status">
         <div class="status-item">
             <span class="status-label">核心设备状态</span>
-            <span id="dev-status" class="badge bg-offline">等待连接...</span>
+            <span id="dev-status" class="badge bg-waiting">等待连接...</span>
         </div>
         <div class="status-item">
             <span class="status-label">照明灯状态</span>
-            <span id="lamp-status" class="badge bg-offline">未刷新</span>
+            <span id="lamp-status" class="badge bg-waiting">未知</span>
         </div>
         <div class="status-item" style="grid-column: span 2;">
-            <span class="status-label">水箱水位雷达</span>
-            <span id="water-status" class="badge bg-offline">等待数据...</span>
+            <span class="status-label">水箱水位</span>
+            <span id="water-status" class="badge bg-waiting">等待数据...</span>
         </div>
     </div>
-
-
     <div class="card">
-        <div class="card-title">🚪 智能门禁控制 (继电器2)</div>
-        <button class="btn btn-primary" onclick="controlOpen()">点击远程开门</button>
+        <div class="card-title">智能门禁控制 (继电器2)</div>
+        <button class="btn btn-primary" id="btn-open" onclick="controlOpen()" disabled>点击远程开门</button>
     </div>
-
-
     <div class="card">
-        <div class="card-title">💡 照明灯控制 (继电器1)</div>
-        <button id="btn-lamp" class="btn btn-success" onclick="toggleLamp()">点击开关灯</button>
+        <div class="card-title">照明灯控制 (继电器1)</div>
+        <button id="btn-lamp" class="btn btn-success" onclick="toggleLamp()" disabled>点击开关灯</button>
     </div>
-
-
     <div class="card">
-        <div class="card-title">⏰ 灯1 定时器开关</div>
-        <div class="timer-row">
-            <label style="display: flex; align-items: center; font-size: 14px; font-weight: 500;">
+        <div class="card-title">灯1 定时器开关</div>
+        <div style="margin-bottom:12px;">
+            <label style="display:flex;align-items:center;font-size:14px;font-weight:500;">
                 <input type="checkbox" id="timer-enable"> 开启自动化定时
             </label>
         </div>
         <div class="timer-inputs">
-            <div class="time-box">
-                <span>开启时间</span>
-                <input type="time" id="start-time" value="15:00">
-            </div>
-            <div class="time-box">
-                <span>关闭时间</span>
-                <input type="time" id="end-time" value="17:30">
-            </div>
+            <div class="time-box"><span>开启时间</span><input type="time" id="start-time" value="15:00"></div>
+            <div class="time-box"><span>关闭时间</span><input type="time" id="end-time" value="17:30"></div>
         </div>
-        <button class="btn btn-primary" style="padding:10px; font-size:14px;" onclick="saveTimer()">保存配置并同步</button>
+        <button class="btn btn-primary" id="btn-timer" style="padding:10px;font-size:14px;" onclick="saveTimer()" disabled>保存配置并同步</button>
     </div>
-
-
-    <div class="card" style="background: #fff5f5; border-color: #ffdee0;">
-        <div class="card-title" style="color: #ff3b30;">🔄 远程固件升级</div>
-        <button class="btn btn-danger" onclick="triggerOTA()">🚀 手动触发 OTA 升级</button>
+    <div class="card" style="background:#fff5f5;border-color:#ffdee0;">
+        <div class="card-title" style="color:#ff3b30;">远程固件升级</div>
+        <button class="btn btn-danger" id="btn-ota" onclick="triggerOTA()" disabled>手动触发 OTA 升级</button>
     </div>
 </div>
-
-
 <script>
-const client = mqtt.connect('wss://b7fea2bf.ala.asia-southeast1.emqxsl.com:8084/mqtt', {
-  clientId: 'web_' + Math.random().toString(16).substr(2,8),
-  username: 'eps8266nn',
-  password: 'yu155414'
+const MQTT_HOST    = 'wss://b7fea2bf.ala.asia-southeast1.emqxsl.com:8084/mqtt';
+const CMD_TOPIC    = 'home/esp8266/cmd';
+const STATUS_TOPIC = 'home/esp8266/status';
+const OFFLINE_TIMEOUT_MS = 360000;
+
+
+const client = mqtt.connect(MQTT_HOST, {
+    clientId: 'web_' + Math.random().toString(16).substr(2, 8),
+    username: 'eps8266nn',
+    password: 'yu155414',
+    reconnectPeriod: 3000,
+    connectTimeout: 10000
 });
 
 
-let lampState = false;
-let lastHeartbeat = 0; 
+let lampState = false, lastHeartbeat = 0, mqttConnected = false;
+const ALL_BTNS = ['btn-open','btn-lamp','btn-timer','btn-ota'];
 
 
-// 🛠️【核心修复】：稳重版连接与对暗号机制
+function setButtonsEnabled(e) { ALL_BTNS.forEach(id => document.getElementById(id).disabled = !e); }
+function setDeviceOffline() {
+    document.getElementById('dev-status').className   = 'badge bg-offline';
+    document.getElementById('dev-status').textContent = '已离线';
+}
+
+
 client.on('connect', () => {
-  console.log("MQTT 服务器已连接");
-  
-  client.subscribe('home/esp8266/status', (err) => {
-    if (!err) {
-      console.log("状态公路建立完毕，准备打招呼...");
-      
-      // 🚀【延迟0.5秒】：等服务器通道彻底建立好，再向单片机要数据
-      setTimeout(() => {
-        console.log("📢 主动索要状态：WHO_IS_ONLINE");
-        client.publish('home/esp8266/cmd', 'WHO_IS_ONLINE');
-      }, 500);
-    }
-  });
+    mqttConnected = true;
+    document.getElementById('mqtt-banner').textContent = 'MQTT 云端已连接';
+    document.getElementById('mqtt-banner').style.color = '#34c759';
+    setButtonsEnabled(true);
+    client.subscribe(STATUS_TOPIC, err => {
+        if (!err) setTimeout(() => client.publish(CMD_TOPIC, 'WHO_IS_ONLINE'), 500);
+    });
 });
 
 
-// 🌟 智能雷达防假在线（配合10秒单片机保底，放宽到30秒容错，防止误报离线）
+client.on('offline', () => {
+    mqttConnected = false;
+    document.getElementById('mqtt-banner').textContent = 'MQTT 已断线，自动重连中...';
+    document.getElementById('mqtt-banner').style.color = '#ff3b30';
+    setButtonsEnabled(false);
+    setDeviceOffline();
+});
+
+
+client.on('error', err => {
+    document.getElementById('mqtt-banner').textContent = 'MQTT 连接错误: ' + err.message;
+    document.getElementById('mqtt-banner').style.color = '#ff3b30';
+});
+
+
 setInterval(() => {
-  if (lastHeartbeat === 0) return; 
-  
-  const currentTime = Date.now();
-  if (currentTime - lastHeartbeat > 30000) { 
-    document.getElementById("dev-status").className = "badge bg-offline";
-    document.getElementById("dev-status").textContent = "已离线 ❌";
-  }
-}, 3000);
+    if (!mqttConnected || lastHeartbeat === 0) return;
+    if (Date.now() - lastHeartbeat > OFFLINE_TIMEOUT_MS) setDeviceOffline();
+}, 30000);
 
 
 client.on('message', (topic, message) => {
-  const msg = message.toString().trim();
-  console.log("收到单片机密令:", msg);
+    const msg = message.toString().trim();
+    lastHeartbeat = Date.now();
+    document.getElementById('dev-status').className   = 'badge bg-online';
+    document.getElementById('dev-status').textContent = '正常在线';
 
 
-  // 📢 只要收到任何消息，雷达秒变绿，证明设备铁定在线
-  lastHeartbeat = Date.now();
-  document.getElementById("dev-status").className = "badge bg-online";
-  document.getElementById("dev-status").textContent = "正常在线 🟢";
-
-
-  // 灯光状态解析
-  if (msg === "ON1") {
-    lampState = true;
-    document.getElementById("btn-lamp").textContent = "灯1 已开启";
-    document.getElementById("lamp-status").className = "badge bg-online";
-    document.getElementById("lamp-status").textContent = "已开灯 💡";
-  }
-  if (msg === "OFF1") {
-    lampState = false;
-    document.getElementById("btn-lamp").textContent = "灯1 已关闭";
-    document.getElementById("lamp-status").className = "badge bg-offline";
-    document.getElementById("lamp-status").textContent = "已关灯 🔴";
-  }
-
-
-  // 水位状态解析
-  if (msg === "WATER_LOW_ALARM") {
-    document.getElementById("water-status").className = "badge bg-offline bg-warning"; 
-    document.getElementById("water-status").textContent = "⚠️ 见底缺水！";
-  }
-  if (msg === "WATER_NORMAL") {
-    document.getElementById("water-status").className = "badge bg-online";
-    document.getElementById("water-status").textContent = "✅ 水位正常";
-  }
-
-
-  if (msg === "LOCK_TRIGGERED") {
-    console.log("门锁已触发");
-  }
-
-
-  // 定时器状态解析
-  if (msg.startsWith("TIMER_INFO_")) {
-    const parts = msg.split('_');
-    if (parts.length >= 4) {
-      document.getElementById("timer-enable").checked = (parts[1] === "1");
-      document.getElementById("start-time").value = parts[2];
-      document.getElementById("end-time").value = parts[3];
+    if (msg === 'ON1') {
+        lampState = true;
+        document.getElementById('btn-lamp').textContent    = '灯1 已开启 — 点击关灯';
+        document.getElementById('lamp-status').className   = 'badge bg-online';
+        document.getElementById('lamp-status').textContent = '已开灯';
     }
-  }
-
-
-  // OTA 升级处理
-  if (msg === "OTA_UPGRADING") {
-    alert("🔄 芯片已接单！开始下载远程 Gitee 固件，请勿切断电源...");
-  }
+    if (msg === 'OFF1') {
+        lampState = false;
+        document.getElementById('btn-lamp').textContent    = '灯1 已关闭 — 点击开灯';
+        document.getElementById('lamp-status').className   = 'badge bg-offline';
+        document.getElementById('lamp-status').textContent = '已关灯';
+    }
+    if (msg === 'WATER_LOW_ALARM') {
+        document.getElementById('water-status').className   = 'badge bg-warning';
+        document.getElementById('water-status').textContent = '缺水警报！';
+    }
+    if (msg === 'WATER_NORMAL') {
+        document.getElementById('water-status').className   = 'badge bg-online';
+        document.getElementById('water-status').textContent = '水位正常';
+    }
+    if (msg.startsWith('TIMER_INFO_')) {
+        const parts = msg.split('_');
+        if (parts.length >= 5) {
+            document.getElementById('timer-enable').checked = (parts[2] === '1');
+            document.getElementById('start-time').value     = parts[3];
+            document.getElementById('end-time').value       = parts[4];
+        }
+    }
+    if (msg === 'OTA_UPGRADING')     alert('设备已开始下载固件，请勿切断电源，升级完成后自动重启。');
+    if (msg === 'OTA_FAILED')        alert('OTA 升级失败，请检查 GitHub 固件地址是否可访问。');
+    if (msg === 'OTA_NO_NEW_FIRMWARE') alert('设备已是最新固件，无需升级。');
 });
 
 
-function controlOpen() {
-  client.publish('home/esp8266/cmd', 'OPEN2');
-}
-
-
-function toggleLamp() {
-  client.publish('home/esp8266/cmd', lampState ? 'OFF1' : 'ON1');
-}
-
-
+function controlOpen() { client.publish(CMD_TOPIC, 'OPEN2'); }
+function toggleLamp()  { client.publish(CMD_TOPIC, lampState ? 'OFF1' : 'ON1'); }
 function saveTimer() {
-  const enabled = document.getElementById("timer-enable").checked ? 1 : 0;
-  const start = document.getElementById("start-time").value;
-  const end = document.getElementById("end-time").value;
-  client.publish('home/esp8266/cmd', `SET_TIMER_${enabled}_${start}_${end}`);
-  alert("⏰ 定时配置已发射到云端！");
+    const e = document.getElementById('timer-enable').checked ? 1 : 0;
+    const s = document.getElementById('start-time').value;
+    const d = document.getElementById('end-time').value;
+    client.publish(CMD_TOPIC, `SET_TIMER_${e}_${s}_${d}`);
+    alert('定时配置已发送到设备！');
 }
-
-
 function triggerOTA() {
-  if (confirm("确定要让远端单片机从 Gitee 仓库更新最新固件吗？")) {
-    client.publish('home/esp8266/cmd', 'DO_OTA_UPDATE');
-  }
+    if (confirm('确定要让设备从 GitHub 更新最新固件吗？升级期间请勿断电。'))
+        client.publish(CMD_TOPIC, 'DO_OTA_UPDATE');
 }
 </script>
 </body>
